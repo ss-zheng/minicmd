@@ -15,7 +15,7 @@ function defineVariables {
 }
 
 function remoteCommand {
-    echo "ssh "$REMOTE" "cd ${TARGET_PATH} \&\& $COMMAND"" >&2
+    echo "ssh "$REMOTE" "cd ${TARGET_PATH} \&\& "$COMMAND""" >&2
     ssh "$REMOTE" "cd ${TARGET_PATH} && $COMMAND"
 }
 
