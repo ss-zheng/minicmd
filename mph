@@ -1,0 +1,127 @@
+#!/bin/bash
+
+# This mini tool is used to manage public_html folder 
+# in UW cs student environment
+
+function defineVariables {
+    MACHINE="linux.student.cs.uwaterloo.ca"
+    USER="s47zheng"
+	ROOT_PATH="~/public_html" # set as root path
+	TARGET_PATH="${ROOT_PATH}"
+	REMOTE=$USER'@'$MACHINE 
+    OPTIONS=''
+	EXE_OPTION=0
+    DIRECTION=0 # 0 is put
+}
+
+function remoteCommand {
+    echo "ssh "$REMOTE" "cd ${TARGET_PATH} \&\& $COMMAND"" >&2
+    ssh "$REMOTE" "cd ${TARGET_PATH} && $COMMAND"
+}
+
+# take in a file name
+function transfer {
+    #fetch
+    if [ $DIRECTION -eq 1 ]; then
+        echo "scp "$OPTIONS" "${REMOTE}:${TARGET_PATH}/${1}" ." >&2
+        scp $OPTIONS "${REMOTE}:${TARGET_PATH}/${1}" .
+    # put
+    else 
+        echo "scp $OPTIONS $1 "${REMOTE}:${TARGET_PATH}"" >&2
+        scp $OPTIONS $1 "${REMOTE}:${TARGET_PATH}"
+    fi
+}
+
+function myfuzzy {
+    #fetch
+    if [ $DIRECTION -eq 1 ]; then
+        LIST=$(ssh ${REMOTE} "cd $TARGET_PATH && ls | grep "$KEYWORD"")
+        if [ $? != 0 ]; then
+            echo "no such file matches keyword: $KEYWORD"
+            exit 1
+        fi
+        for file in $LIST; do
+            transfer "$file"
+        done
+    # put
+    else 
+        LIST=$(ls | grep "$KEYWORD")
+        if [ $? != 0 ]; then
+            echo "no such file matches keyword: $KEYWORD"
+            exit 1
+        fi
+        for file in $LIST; do
+            transfer "$file"
+        done
+    fi
+
+}
+	
+#-------------------------------- MAIN -----------------------------------
+
+for last; do true; done  #get the last argument
+defineVariables
+
+if [ $# != 0 ]; then
+	while getopts ":c:f:ghi:m:r" opt; do
+		case $opt in
+            c)
+		        EXE_OPTION=1
+                COMMAND=$OPTARG
+                remoteCommand
+                ;;
+			f)
+		        EXE_OPTION=2
+                KEYWORD=$OPTARG
+				;;
+            g) 
+                #set EXE_OPTION back
+                DIRECTION=1
+                ;;
+			h)
+                echo "-c: execute command(s)"
+				echo "-f: fuzzy put files"
+                echo "-g: swich from put to get"
+				echo "-h: help"
+                echo "-i: specify a path (public_html is '/')"
+                echo "-m: specify a remote machine"
+				echo "-r: put recursively"
+				;;
+			i) 
+				TARGET_PATH="${TARGET_PATH}${OPTARG}"
+				;;
+            m)
+                REMOTE=$OPTARG
+                ;;
+			r) 
+                OPTIONS="-r"
+				;;
+			\?)
+				echo "Invalid option: -$OPTARG" >&2
+				exit 1
+				;;
+			:) 
+				echo "Option -$OPTARG requires an argument." >&2
+				exit 1
+				;;
+		esac
+	done
+fi
+
+#exe option 0 - 
+# fuzzy
+if [ $EXE_OPTION -eq 2 ]; then
+	myfuzzy 
+# options only used to change path
+elif [ $EXE_OPTION -eq 0 ]; then
+	transfer $last
+fi
+
+# if [ "$EXE_OPTION" -eq 0 ]; then
+# 	if [ $# = 0 ]; then
+# 		echo "Please specify a file" >&2
+# 		exit 1
+# 	fi
+#     transfer $1
+# fi
+exit 0
